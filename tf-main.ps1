@@ -4,12 +4,12 @@ Creates Setup Complete Files
 #>
 
 Set-ExecutionPolicy Bypass -Force
-iex (irm https://raw.githubusercontent.com/MSP-AVG/AE/refs/heads/main/ae-ap-menu.ps1)
+iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-ap-menu.ps1)
 
 Write-Host -Foreground Red $GroupTag
 sleep -Seconds 3
 
-iex (irm https://raw.githubusercontent.com/MSP-AVG/AE/refs/heads/main/ae-functions.ps1)
+iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-functions.ps1)
 
 #++++++++++++++++++++++++++++++
 # Functions were here !!
@@ -34,7 +34,7 @@ $OSReleaseID = '23H2' #Used to Determine Driver Pack
 $OSName = 'Windows 11 23H2 x64'
 $OSEdition = 'Enterprise'
 $OSActivation = 'Volume'
-$OSLanguage = 'nl-NL'
+$OSLanguage = 'en-US'
 
 
 #Set OSDCloud Vars
