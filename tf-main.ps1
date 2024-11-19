@@ -30,8 +30,8 @@ if ($env:SystemDrive -eq 'X:') {
 #Variables to define the Windows OS / Edition etc to be applied during OSDCloud
 $Product = (Get-MyComputerProduct)
 $OSVersion = 'Windows 11' #Used to Determine Driver Pack
-$OSReleaseID = '23H2' #Used to Determine Driver Pack
-$OSName = 'Windows 11 23H2 x64'
+$OSReleaseID = '24H2' #Used to Determine Driver Pack
+$OSName = 'Windows 11 24H2 x64'
 $OSEdition = 'Enterprise'
 $OSActivation = 'Volume'
 $OSLanguage = 'en-US'
@@ -58,8 +58,8 @@ if ($DriverPack){
     $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
 }
 
+<#
 #Enable HPIA | Update HP BIOS | Update HP TPM
- 
 if (Test-HPIASupport){
     #$Global:MyOSDCloud.DevMode = [bool]$True
     $Global:MyOSDCloud.HPTPMUpdate = [bool]$True
@@ -70,6 +70,7 @@ if (Test-HPIASupport){
     iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-manage-hpbiossettings.ps1)
     Manage-HPBiosSettings -SetSettings
 }
+#>
 
 #write variables to console
 Write-Output $Global:MyOSDCloud
