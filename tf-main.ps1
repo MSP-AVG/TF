@@ -103,6 +103,7 @@ $OSDCloudUSB = Get-Volume.usb | Where-Object {($_.FileSystemLabel -match 'OSDClo
 $DriverPath = "$($OSDCloudUSB.DriveLetter):\OSDCloud\OS\"
 $ImageFileName = Get-ChildItem -Path $DriverPath -Name *.esd
 $ImageFileNameDL = Get-ChildItem -Path 'C:\OSDCloud\OS' -Name *.esd 
+if (!(Test-Path $DriverPath)){New-Item -ItemType Directory -Path $DriverPath}
 
 if($ImageFileName -ne $ImageFileNameDL){
     Remove-Item -Path $DriverPath$ImageFileName -Force
