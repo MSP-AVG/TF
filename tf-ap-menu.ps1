@@ -60,6 +60,7 @@ $listBox.Width  = 300
 [void] $listBox.Items.Add('TF-NL')
 [void] $listBox.Items.Add('TF-NL-Shared')
 [void] $listBox.Items.Add('TF-BE')
+[void] $listBox.Items.Add('TF-BE-Shared')
 [void] $listBox.Items.Add('TF-DE')
 [void] $listBox.Items.Add('TF-LU')
 [void] $listBox.Items.Add('')
