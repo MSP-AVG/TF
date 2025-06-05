@@ -112,8 +112,8 @@ if (!(Test-Path $DriverPath$ImageFileNameDL)){Copy-Item -Path C:\OSDCloud\OS\$Im
 }
 #===================
 
-if($GroupTag -eq 'TF-BE'){Dism /image:C:\ /Set-InputLocale:080C:0000080C}
-if($GroupTag -eq 'TF-BE-Shared'){Dism /image:C:\ /Set-InputLocale:080C:0000080C}
+if($GroupTag -eq 'TF-BE'){Dism /image:C:\ /Set-InputLocale:0409:00000409}
+if($GroupTag -eq 'TF-BE-Shared'){Dism /image:C:\ /Set-InputLocale:0409:00000409}
 if($GroupTag -eq 'TF-LU'){Dism /image:C:\ /Set-InputLocale:046E:0000046E}
 if($GroupTag -eq 'TF-DE'){Dism /image:C:\ /Set-InputLocale:0407:00000407}
 if($GroupTag -eq 'TF-NL'){Dism /image:C:\ /Set-InputLocale:0413:00020409}
