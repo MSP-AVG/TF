@@ -4,120 +4,126 @@ Creates Setup Complete Files
 #>
 
 Set-ExecutionPolicy Bypass -Force
+
+# Load functions
 iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-ap-menu.ps1)
-
 Write-Host -Foreground Red $GroupTag
-sleep -Seconds 3
-
+Start-Sleep -Seconds 3
 iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-functions.ps1)
 
-#++++++++++++++++++++++++++++++
-# Functions were here !!
-#++++++++++++++++++++++++++++++
-
+# Ensure execution policy
 Set-ExecutionPolicy Bypass -Force
 
-#WinPE Stuff
+# Proceed only in WinPE
 if ($env:SystemDrive -eq 'X:') {
-    #Create Custom SetupComplete on USBDrive, this will get copied and run during SetupComplete Phase thanks to OSD Function: Set-SetupCompleteOSDCloudUSB
-    #Set-SetupCompleteCreateStartHOPEonUSB
-    #Set-SetupCompleteOSDCloudUSB
-    
-    #Write-Host -ForegroundColor Green "Starting win11.garytown.com"
-    #to Run boot OSDCloudUSB, at the PS Prompt: iex (irm win11.garytown.com)
 
+    # Define Windows settings
+    $Product = Get-MyComputerProduct
+    $OSVersion = 'Windows 11'
+    $OSReleaseID = '24H2'
+    $OSName = 'Windows 11 24H2 x64'
+    $OSEdition = 'Enterprise'
+    $OSActivation = 'Volume'
+    $OSLanguage = 'en-US'
 
-#Variables to define the Windows OS / Edition etc to be applied during OSDCloud
-$Product = (Get-MyComputerProduct)
-$OSVersion = 'Windows 11' #Used to Determine Driver Pack
-$OSReleaseID = '24H2' #Used to Determine Driver Pack
-$OSName = 'Windows 11 24H2 x64'
-$OSEdition = 'Enterprise'
-$OSActivation = 'Volume'
-$OSLanguage = 'en-US'
+    $Global:MyOSDCloud = [ordered]@{
+        Restart = $false
+        RecoveryPartition = $true
+        OEMActivation = $true
+        WindowsUpdate = $true
+        WindowsUpdateDrivers = $true
+        WindowsDefenderUpdate = $true
+        SetTimeZone = $true
+        ClearDiskConfirm = $false
+        ShutdownSetupComplete = $true
+        SyncMSUpCatDriverUSB = $true
+    }
 
+    # Get driver pack
+    $DriverPack = Get-OSDCloudDriverPack -Product $Product -OSVersion $OSVersion -OSReleaseID $OSReleaseID
+    if ($DriverPack) {
+        $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
+    }
 
-#Set OSDCloud Vars
-$Global:MyOSDCloud = [ordered]@{
-    Restart = [bool]$False
-    RecoveryPartition = [bool]$true
-    OEMActivation = [bool]$True
-    WindowsUpdate = [bool]$true
-    WindowsUpdateDrivers = [bool]$true
-    WindowsDefenderUpdate = [bool]$true
-    SetTimeZone = [bool]$true
-    ClearDiskConfirm = [bool]$False
-    ShutdownSetupComplete = [bool]$true
-    SyncMSUpCatDriverUSB = [bool]$true
-   }
+    # Output config
+    Write-Output $Global:MyOSDCloud
 
-#Used to Determine Driver Pack
-$DriverPack = Get-OSDCloudDriverPack -Product $Product -OSVersion $OSVersion -OSReleaseID $OSReleaseID
+    # Import latest module
+    $ModulePath = (Get-ChildItem -Path "$($Env:ProgramFiles)\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | Select-Object -Last 1).FullName
+    Import-Module "$ModulePath\OSD.psd1" -Force
 
-if ($DriverPack){
-    $Global:MyOSDCloud.DriverPackName = $DriverPack.Name
-}
+    # Launch OSDCloud
+    Write-Host "Starting OSDCloud" -ForegroundColor Green
+    Write-Host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
+    Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage
 
-<#
-#Enable HPIA | Update HP BIOS | Update HP TPM
-if (Test-HPIASupport){
-    #$Global:MyOSDCloud.DevMode = [bool]$True
-    $Global:MyOSDCloud.HPTPMUpdate = [bool]$True
-    if ($Product -ne '83B2'){$Global:MyOSDCloud.HPIAALL = [bool]$true} #I've had issues with this device and HPIA
-    $Global:MyOSDCloud.HPBIOSUpdate = [bool]$true
+    Write-Host "OSDCloud Process Complete, Running Custom Actions From Script Before Reboot" -ForegroundColor Green
 
-    #Set HP BIOS Settings to what I want:
-    iex (irm https://raw.githubusercontent.com/MSP-AVG/TF/refs/heads/main/tf-manage-hpbiossettings.ps1)
-    Manage-HPBiosSettings -SetSettings
-}
-#>
+    # Copy CMTrace
+    if (Test-Path "x:\windows\system32\cmtrace.exe") {
+        Copy-Item "x:\windows\system32\cmtrace.exe" -Destination "C:\Windows\System\cmtrace.exe"
+    }
 
-#write variables to console
-Write-Output $Global:MyOSDCloud
+    # Save group tag
+    $GroupTag | Out-File -FilePath C:\Windows\DeviceType.txt
 
-#Update Files in Module that have been updated since last PowerShell Gallery Build (Testing Only)
-$ModulePath = (Get-ChildItem -Path "$($Env:ProgramFiles)\WindowsPowerShell\Modules\osd" | Where-Object {$_.Attributes -match "Directory"} | select -Last 1).fullname
-import-module "$ModulePath\OSD.psd1" -Force
+    # SetupComplete script
+    Set-SetupCompleteOSDCloudUSB
 
-#Launch OSDCloud
-Write-Host "Starting OSDCloud" -ForegroundColor Green
-write-host "Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage"
+    # Save ESD image back to USB
+    $OSDCloudUSB = Get-Volume.usb | Where-Object {($_.FileSystemLabel -match 'OSDCloud') -or ($_.FileSystemLabel -match 'BHIMAGE')} | Select-Object -First 1
+    $DriverPath = "$($OSDCloudUSB.DriveLetter):\OSDCloud\OS\"
+    $ImageFileName = Get-ChildItem -Path $DriverPath -Name *.esd -ErrorAction SilentlyContinue
+    $ImageFileNameDL = Get-ChildItem -Path 'C:\OSDCloud\OS' -Name *.esd -ErrorAction SilentlyContinue
+    if (!(Test-Path $DriverPath)) { New-Item -ItemType Directory -Path $DriverPath | Out-Null }
 
-Start-OSDCloud -OSName $OSName -OSEdition $OSEdition -OSActivation $OSActivation -OSLanguage $OSLanguage
+    if ($ImageFileName -ne $ImageFileNameDL) {
+        Remove-Item -Path "$DriverPath$ImageFileName" -Force -ErrorAction SilentlyContinue
+        if (!(Test-Path "$DriverPath$ImageFileNameDL")) {
+            Copy-Item -Path "C:\OSDCloud\OS\$ImageFileNameDL" -Destination "$DriverPath$ImageFileNameDL" -Force
+        }
+    }
 
-write-host "OSDCloud Process Complete, Running Custom Actions From Script Before Reboot" -ForegroundColor Green
+    # ================================
+    # Set input locale & inject unattend.xml
+    # ================================
+    switch ($GroupTag) {
+        'TF-BE' { $InputLocale = '0813:00000813'; $SystemLocale = 'nl-BE'; $UserLocale = 'nl-BE' }
+        'TF-BE-Shared' { $InputLocale = '0813:00000813'; $SystemLocale = 'nl-BE'; $UserLocale = 'nl-BE' }
+        'TF-LU' { $InputLocale = '046E:0000046E'; $SystemLocale = 'lb-LU'; $UserLocale = 'lb-LU' }
+        'TF-DE' { $InputLocale = '0407:00000407'; $SystemLocale = 'de-DE'; $UserLocale = 'de-DE' }
+        'TF-NL' { $InputLocale = '0413:00020409'; $SystemLocale = 'nl-NL'; $UserLocale = 'nl-NL' }
+        'TF-NL-Shared' { $InputLocale = '0413:00020409'; $SystemLocale = 'nl-NL'; $UserLocale = 'nl-NL' }
+        default {
+            $InputLocale = '0409:00000409'; $SystemLocale = 'en-US'; $UserLocale = 'en-US'
+        }
+    }
 
+    # Apply with DISM
+    Dism /image:C:\ /Set-InputLocale:$InputLocale
+    Dism /image:C:\ /Set-UserLocale:$UserLocale
+    Dism /image:C:\ /Set-SysLocale:$SystemLocale
+    Dism /image:C:\ /Set-UILang:$OSLanguage
+    Dism /image:C:\ /Set-AllIntl:$InputLocale
 
+    # Write unattend.xml
+    $UnattendPath = "C:\Windows\Panther\Unattend\Unattend.xml"
+    $UnattendContent = @"
+<?xml version="1.0" encoding="utf-8"?>
+<unattend xmlns="urn:schemas-microsoft-com:unattend">
+  <settings pass="oobeSystem">
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <InputLocale>$InputLocale</InputLocale>
+      <SystemLocale>$SystemLocale</SystemLocale>
+      <UILanguage>$OSLanguage</UILanguage>
+      <UserLocale>$UserLocale</UserLocale>
+    </component>
+  </settings>
+</unattend>
+"@
+    New-Item -Path (Split-Path $UnattendPath) -ItemType Directory -Force | Out-Null
+    $UnattendContent | Set-Content -Path $UnattendPath -Encoding UTF8
 
-#Copy CMTrace Local:
-if (Test-path -path "x:\windows\system32\cmtrace.exe"){
-    copy-item "x:\windows\system32\cmtrace.exe" -Destination "C:\Windows\System\cmtrace.exe"
-}
-
-$GroupTag | Out-File -FilePath C:\Windows\DeviceType.txt
-
-Set-SetupCompleteOSDCloudUSB
-
-#Save Windows Image on USB 
-$OSDCloudUSB = Get-Volume.usb | Where-Object {($_.FileSystemLabel -match 'OSDCloud') -or ($_.FileSystemLabel -match 'BHIMAGE')} | Select-Object -First 1
-$DriverPath = "$($OSDCloudUSB.DriveLetter):\OSDCloud\OS\"
-$ImageFileName = Get-ChildItem -Path $DriverPath -Name *.esd
-$ImageFileNameDL = Get-ChildItem -Path 'C:\OSDCloud\OS' -Name *.esd 
-if (!(Test-Path $DriverPath)){New-Item -ItemType Directory -Path $DriverPath}
-
-if($ImageFileName -ne $ImageFileNameDL){
-    Remove-Item -Path $DriverPath$ImageFileName -Force
-if (!(Test-Path $DriverPath)){New-Item -ItemType Directory -Path $DriverPath}
-if (!(Test-Path $DriverPath$ImageFileNameDL)){Copy-Item -Path C:\OSDCloud\OS\$ImageFileNameDL -Destination $DriverPath$ImageFileNameDL -Force}
-}
-#===================
-
-if($GroupTag -eq 'TF-BE'){Dism /image:C:\ /Set-InputLocale:0813:00000813}
-if($GroupTag -eq 'TF-BE-Shared'){Dism /image:C:\ /Set-InputLocale:0813:00000813}
-if($GroupTag -eq 'TF-LU'){Dism /image:C:\ /Set-InputLocale:046E:0000046E}
-if($GroupTag -eq 'TF-DE'){Dism /image:C:\ /Set-InputLocale:0407:00000407}
-if($GroupTag -eq 'TF-NL'){Dism /image:C:\ /Set-InputLocale:0413:00020409}
-if($GroupTag -eq 'TF-NL-Shared'){Dism /image:C:\ /Set-InputLocale:0413:00020409}
-
-Restart-Computer
+    # Restart
+    Restart-Computer
 }
